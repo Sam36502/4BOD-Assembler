@@ -29,6 +29,7 @@ to remember what each one does. They are as follows:
 | `1101` | `CEQ`  | Only perform next instruction if the value at address arg1 is equal to the accumulator. |
 | `1110` | `CGT`  | Only perform next instruction if the value at address arg1 is greater than the accumulator. |
 | `1111` | `CLT`  | Only perform next instruction if the value at address arg1 is less than the accumulator. |
+
 (Instruction descriptions from the [Esolangs Page](https://esolangs.org/wiki/4BOD))
 
 ### Special Commands
