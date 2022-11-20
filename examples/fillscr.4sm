@@ -1,0 +1,32 @@
+; Simple program to set all pixels on the screen on
+
+#var x 0x0          ; define memory variables
+#var y 0x1
+
+    CLS             ; Make sure all pixels all 0 first
+    
+    STA     0       ; Zero out vars
+    MVM     x
+    MVM     y
+
+#label loop
+    FLP     x   y   ; Turn pixel on
+    
+    MVA     x       ; Increment x
+    INC
+    MVM     x
+
+    STA     16      ; loop if not at the end of a row
+    CLT     x
+    JMP     loop
+
+    STA     0       ; Reset x
+    MVM     x
+
+    MVA     y       ; Increment y
+    INC
+    MVM     y
+
+    STA     16      ; loop if not at the bottom
+    CLT     y
+    JMP     loop

@@ -1,0 +1,10 @@
+; Basic program to draw a diagonal line from the top-left
+; to the bottom-right in a loop
+
+#var pos 0x0            ; Labels addr 0x0 with name 'pos'
+
+#label loop
+    FLP     pos   pos   ; Flip pixel at (pos/pos)
+    INC                 ; Increment accumulator (starts at 0)
+    MVM     pos         ; Move accumulator value to pos
+    JMP     loop        ; Jump to top of loop again

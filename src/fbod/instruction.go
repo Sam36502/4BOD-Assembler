@@ -1,9 +1,9 @@
 package fbod
 
 type Instruction struct {
-	instruction byte
-	arg1        byte
-	arg2        byte
+	Instruction byte
+	Arg1        byte
+	Arg2        byte
 }
 
 type Program []Instruction
