@@ -13,4 +13,4 @@ build-lin:
 
 build-win:
 	@echo '--> Builing Windows binary...'
-	GOOS=windows go build -o $(LIN_DIR)/$(BIN) $(SRC_DIR)/main.go
+	GOOS=windows go build -o $(WIN_DIR)/$(BIN).exe $(SRC_DIR)/main.go
