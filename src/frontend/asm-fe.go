@@ -19,7 +19,7 @@ type AssemblyFrontend struct {
 
 // Assembly language Regexes
 const (
-	ASM_REGEX_COMMENT    = ";.*$"
+	ASM_REGEX_COMMENT    = ";.*"
 	ASM_REGEX_WHITESPACE = "[ \t]+"
 )
 
@@ -108,17 +108,34 @@ func (fe *AssemblyFrontend) GetDescription() string {
 	return "The assembly front-end. See README.md for language spec."
 }
 
-func (fe *AssemblyFrontend) ParseString(data string) (fbod.Program, error) {
+func (fe *AssemblyFrontend) ParseString(data string) (fbod.Program, []error) {
 	prog := fbod.Program{}
 	labels := map[string]byte{}
-	nextlabel := 0
 	vars := map[string]byte{}
+	errors := []error{}
 
 	// Preprocess file removing unneccessary formatting
 	commentRegex := regexp.MustCompile(ASM_REGEX_COMMENT)
 	whitespaceRegex := regexp.MustCompile(ASM_REGEX_WHITESPACE)
 	data = string(commentRegex.ReplaceAll([]byte(data), []byte{}))                  // Remove all comments
 	data = string(whitespaceRegex.ReplaceAll([]byte(data), []byte{ASM_CHAR_SPACE})) // Reduce multiple whitespace to single space
+
+	// Find all labels
+	nextlabel := 0
+	for i, line := range strings.Split(data, ASM_STR_NEWLINE) {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, ASM_STR_SPECIAL) {
+			continue
+		}
+		fields := strings.Split(line, string(ASM_CHAR_SPACE))
+		name := strings.ToLower(fields[1])
+		if nextlabel >= 16 {
+			errors = append(errors, formatSyntaxError(i, "Exceeded maximum number of labels (16)", nil))
+			continue
+		}
+		labels[name] = byte(nextlabel)
+		nextlabel++
+	}
 
 	// File should be mostly uniform columns of assembly and arguments
 	for i, line := range strings.Split(data, ASM_STR_NEWLINE) {
@@ -139,33 +156,35 @@ func (fe *AssemblyFrontend) ParseString(data string) (fbod.Program, error) {
 
 			case ASM_SPEC_VAR:
 				if len(fields) != 3 {
-					return fbod.Program{}, formatSyntaxError(i, "`#var` special command requires two arguments", nil)
+					errors = append(errors, formatSyntaxError(i, "`#var` special command requires two arguments", nil))
+					continue
 				}
 				name := strings.ToLower(fields[1])
 				addr, err := parseNumber(fields[2])
 				if err != nil {
-					return fbod.Program{}, formatSyntaxError(i, "`#var` special command requires numeric second argument", err)
+					errors = append(errors, formatSyntaxError(i, "`#var` special command requires numeric second argument", err))
+					continue
 				}
 				vars[name] = byte(addr)
 
 			case ASM_SPEC_LBL:
 				if len(fields) != 2 {
-					return fbod.Program{}, formatSyntaxError(i, "`#label` special command requires one argument", nil)
+					errors = append(errors, formatSyntaxError(i, "`#label` special command requires one argument", nil))
+					continue
 				}
-				name := strings.ToLower(fields[1])
-				if nextlabel >= 16 {
-					return fbod.Program{}, formatSyntaxError(i, "Exceeded maximum number of labels (16)", nil)
+				num, err := parseNamedNum(fields[1], labels)
+				if err != nil {
+					errors = append(errors, formatSyntaxError(i, "`#label` name not found", err))
+					continue
 				}
-				labels[name] = byte(nextlabel)
 				prog = append(prog, fbod.Instruction{
 					Instruction: ASM_OP_FLG,
-					Arg1:        byte(nextlabel),
+					Arg1:        num,
 				})
-				nextlabel++
 
 			default:
-				return fbod.Program{}, formatSyntaxError(i, fmt.Sprintf("'#%s' is not a recognised special command", specCmd), nil)
-
+				errors = append(errors, formatSyntaxError(i, fmt.Sprintf("'#%s' is not a recognised special command", specCmd), nil))
+				continue
 			}
 			continue
 		}
@@ -182,7 +201,8 @@ func (fe *AssemblyFrontend) ParseString(data string) (fbod.Program, error) {
 			}
 		}
 		if !found {
-			return fbod.Program{}, formatSyntaxError(i, fmt.Sprintf("Invalid Opcode '%s'", opstr), nil)
+			errors = append(errors, formatSyntaxError(i, fmt.Sprintf("Invalid Opcode '%s'", opstr), nil))
+			continue
 		}
 
 		// Handle arguments
@@ -200,7 +220,8 @@ func (fe *AssemblyFrontend) ParseString(data string) (fbod.Program, error) {
 		case ASM_OP_CLT:
 			addr, err := parseNamedNum(fields[1], vars)
 			if err != nil {
-				return fbod.Program{}, formatSyntaxError(i, "No valid address argument found", err)
+				errors = append(errors, formatSyntaxError(i, "No valid address argument found", err))
+				continue
 			}
 			ins.Arg1 = addr
 
@@ -208,7 +229,8 @@ func (fe *AssemblyFrontend) ParseString(data string) (fbod.Program, error) {
 		case ASM_OP_STA:
 			num, err := parseNumber(fields[1])
 			if err != nil {
-				return fbod.Program{}, formatSyntaxError(i, "No valid address argument found", err)
+				errors = append(errors, formatSyntaxError(i, "No valid address argument found", err))
+				continue
 			}
 			ins.Arg1 = byte(num)
 
@@ -218,7 +240,8 @@ func (fe *AssemblyFrontend) ParseString(data string) (fbod.Program, error) {
 		case ASM_OP_JMP:
 			labelnum, err := parseNamedNum(fields[1], labels)
 			if err != nil {
-				return fbod.Program{}, formatSyntaxError(i, "Invalid label argument", err)
+				errors = append(errors, formatSyntaxError(i, "Invalid label argument", err))
+				continue
 			}
 			ins.Arg1 = labelnum
 
@@ -228,26 +251,34 @@ func (fe *AssemblyFrontend) ParseString(data string) (fbod.Program, error) {
 		case ASM_OP_FLP:
 			addr, err := parseNamedNum(fields[1], vars)
 			if err != nil {
-				return fbod.Program{}, formatSyntaxError(i, "(Arg 1) Invalid address argument", err)
+				errors = append(errors, formatSyntaxError(i, "(Arg 1) Invalid address argument", err))
+				continue
 			}
 			ins.Arg1 = addr
 			addr, err = parseNamedNum(fields[2], vars)
 			if err != nil {
-				return fbod.Program{}, formatSyntaxError(i, "(Arg 2) Invalid address argument", err)
+				errors = append(errors, formatSyntaxError(i, "(Arg 2) Invalid address argument", err))
+				continue
 			}
 			ins.Arg2 = addr
 
 		}
 
+		// DEBUG
+		// fmt.Printf("Parsed Instruction: 0x%X%X%X\n", ins.Instruction, ins.Arg1, ins.Arg2)
+		prog = append(prog, ins)
 	}
 
+	if len(errors) > 0 {
+		return fbod.Program{}, errors
+	}
 	return prog, nil
 }
 
-func (fe *AssemblyFrontend) ParseFile(filename string) (fbod.Program, error) {
+func (fe *AssemblyFrontend) ParseFile(filename string) (fbod.Program, []error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return fbod.Program{}, err
+		return fbod.Program{}, []error{err}
 	}
 
 	return fe.ParseString(string(data))
@@ -267,7 +298,7 @@ func parseNumber(str string) (int, error) {
 	for base, prefix := range ASM_NUMFMT {
 		if strings.HasPrefix(str, prefix) {
 			if num, err := strconv.ParseUint(strings.TrimPrefix(str, prefix), base, 64); err == nil {
-				if num > 16 {
+				if num > 15 {
 					return -1, fmt.Errorf("'%s' is too large to be a 4-bit number", str)
 				}
 				return int(num), nil

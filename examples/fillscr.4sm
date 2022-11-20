@@ -16,7 +16,7 @@
     INC
     MVM     x
 
-    STA     16      ; loop if not at the end of a row
+    STA     15      ; loop if not at the end of a row
     CLT     x
     JMP     loop
 
@@ -27,6 +27,9 @@
     INC
     MVM     y
 
-    STA     16      ; loop if not at the bottom
-    CLT     y
+    STA     15      ; loop if not at the bottom
+    CEQ     y
+    JMP     end
     JMP     loop
+#label end
+    JMP     end

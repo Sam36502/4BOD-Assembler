@@ -8,3 +8,4 @@
     INC                 ; Increment accumulator (starts at 0)
     MVM     pos         ; Move accumulator value to pos
     JMP     loop        ; Jump to top of loop again
+

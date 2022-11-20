@@ -13,8 +13,8 @@ type Frontend interface {
 	SetOptions(opts FrontendOptions)
 	GetOptions() FrontendOptions
 	GetDescription() string
-	ParseString(data string) (fbod.Program, error)
-	ParseFile(filename string) (fbod.Program, error)
+	ParseString(data string) (fbod.Program, []error)
+	ParseFile(filename string) (fbod.Program, []error)
 }
 
 // Frontend Names

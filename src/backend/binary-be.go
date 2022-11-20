@@ -32,8 +32,8 @@ func (be *BinaryBackend) GetDescription() string {
 }
 
 func (be *BinaryBackend) GenerateFile(prog fbod.Program, filename string) error {
-	data := []byte{}
-	for i := 0; i < fbod.FBOD_PROG_SIZE*fbod.FBOD_PAGE_SIZE; i += 2 {
+	data := make([]byte, len(prog)*2)
+	for i := 0; i < len(prog)*2; i += 2 {
 		ins := prog[i/2]
 		data[i] = byte(ins.Instruction)
 		data[i+1] = byte((ins.Arg1 << 4) | ins.Arg2)

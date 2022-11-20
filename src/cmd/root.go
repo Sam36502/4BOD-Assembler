@@ -68,12 +68,16 @@ such as binary, ascii-bitmaps, etc. Use -l to see what formats are available`,
 		}
 
 		// Assemble file
-		program, err := front.ParseFile(infile)
-		if err != nil {
-			// TODO: Make front-ends return an array of errors
-			//       and not return until the whole file is scanned
+		program, errs := front.ParseFile(infile)
+		if errs != nil {
 			fmt.Println("Failed to parse input file:")
-			fmt.Println(err)
+			for _, err := range errs {
+				fmt.Println(err)
+			}
+			return
+		}
+		if len(program) == 0 {
+			fmt.Println("Front-end produced empty program")
 			return
 		}
 		err = back.GenerateFile(program, outfile)
